@@ -1,0 +1,272 @@
+#编写基本函数，第一个位NumPy科学计算包，第二个是运算符模块,第三个以后均为可视化数据所需的matplotlib
+from numpy import *
+import operator
+from os import listdir
+#k-近邻算法：
+"""
+    函数说明:kNN算法,分类器
+
+    Parameters:
+	inX - 用于分类的数据(测试集)
+	dataSet - 用于训练的数据(训练集)
+	labes - 分类标签
+	k - kNN算法参数,选择距离最小的k个点
+    Returns:
+	sortedClassCount[0][0] - 分类结果
+
+    Modify:
+	2017-09-01
+"""
+#（1）计算已知类别数据集中的点与当前点之间的距离，并按照递增次序排序；
+def classify0(inX,dataSet,labels,k):
+    #首先获取已知类别数据集的矩阵行数
+    dataSetSize = dataSet.shape[0]
+    #然后利用tile()函数对当前点进行已知类别数据集的行扩充，并计算与各个已知类别的点之差
+    diffMat=tile(inX,(dataSetSize,1))-dataSet
+    #再将两者之差进行平方
+    sqDiffMat=diffMat**2
+    #将平方后所得的矩阵进行每一行向量相加
+    sqDistance=sqDiffMat.sum(axis=1)
+    #最后将所得的平方和进行开平方即可得当前点与各个已知类别数据集中点之间的距离
+    distance=sqDistance**0.5
+    #最后将得到得到距离进行按递增排序
+    sortedDistIndicies=distance.argsort()
+#(2)选取与当前点距离最小的k个点，并确定前k个点所在类别的出现频率
+    #首先创建一个新的空dict,用于存放k个点所在类别及其出现的频数
+    classCount={}
+    #选取k个点
+    for i in range(k):
+    #首先获取距离从小到大的数据点的类别，利用distance.argsort()[]获取
+        voteIlabels=labels[sortedDistIndicies[i]]
+    #将获取的距离最小的k个点的类别进行统计，并存放于classCount{}
+    #classCount.get(A,0)+1表示对classCount中的A出现的频数进行统计，若不存在，返回0，若存在，则+1
+        classCount [voteIlabels] = classCount.get(voteIlabels,0)+1
+#（3）对k个点所在类别出现的频率进行由大至小排序，最后输出k个点出现频率最高的类别作为当前点的预测分类
+    sortedClassCount=sorted(classCount.items(),key=operator.itemgetter(1),reverse=True)
+    #在python2.版本中的itertems()的用法在python3.0中被废除，以items()代替
+    return sortedClassCount[0][0]
+#将文本数据转换至maxtrix
+"""
+函数说明:打开并解析文件，对数据进行分类
+
+Parameters:
+	filename - 文件名
+Returns:
+	returnMat - 特征矩阵
+	classLabelVector - 分类Label向量
+
+Modify:
+	2017-09-01
+"""
+#首先定义一个转换函数
+def file2matrix(filename):
+        #打开文件
+        fr=open(filename)
+        #对文件进行读取并返回一个列表
+        arrayOLines=fr.readlines()
+        #获取文件的行数
+        numberOfLines=len(arrayOLines)
+        #建立一个空矩阵（大小为行数*3）
+        returnMat=zeros((numberOfLines,3))
+        #接下来开始获取文本信息
+        #先建立一个空列表，用于存放每个数据集对应的类别
+        classLabelVector=[]
+        #再建立一个循环开始读取
+        index=0
+        for line in arrayOLines:
+                #读取每行前，先将每一行的回车字符截取，利用line.strip()函数
+                line=line.strip()
+                #再利用slipt()函数，将每一行的数据按'\t'符号进行分割，并返回列表
+                listFromLine=line.split('\t')
+                #读取每一行的前三个元素作为数据矩阵的特征，存取至矩阵中
+                returnMat[index,:]=listFromLine[0:3]
+                #对每一行的分类（即分割后的最后一个元素）进行读取，并存入labels向量中，注意原文件中，读取默认为字符串格式，需要转换为整数格式，因此采用int()函数
+                #若分类为字符串，则可以利用if和elif将字符串以相应的数字体现
+                if listFromLine[-1]=='didntLike':
+                    classLabelVector.append(1)
+                elif listFromLine[-1]=='smallDoses':
+                    classLabelVector.append(2)
+                elif listFromLine[-1]=='largeDoses':
+                    classLabelVector.append(3)
+                #对索引值进行循环叠加
+                index +=1
+        return returnMat,classLabelVector
+"""
+函数说明:可视化数据
+
+Parameters:
+	datingDataMat - 特征矩阵
+	datingLabels - 分类Label
+Returns:
+	无
+Modify:
+	2017-03-24
+"""
+#首先定义一个可视化数据的函数
+def showDatas(datingDataMat,datingLabels):
+    #设置画布中的文字格式
+    font=FontProperties(fname=r"c:\windows\fonts\simsun.ttc", size=14)
+    #然后将一个13*8大小的画布切割为一个2*2的四个小区域，并且每个区域x和y坐标均不共享
+    fig, axs = plt.subplots(nrows=2,ncols=2,sharex=False,sharey=False,figsize=(13,8))
+    #计算数据集中标签的个数
+    numOfLabels=len(datingLabels)
+    #创建一个颜色列表，用于区别三种标签的不同颜色
+    labelsColors=[]
+    for i in datingLabels:
+        if i==1:
+            labelsColors.append('black')
+        elif i==2:
+            labelsColors.append('red')
+        elif i==3:
+            labelsColors.append('yellow')
+    #以datingDataMat的第一列为横坐标，第二列为纵坐标画出第一幅图，三点大小为15，透明度为0.5
+    axs[0][0].scatter (x=datingDataMat[:,0],y=datingDataMat[:,1],color=labelsColors,s=15,alpha=.5) 
+    #设置标题，x和y轴标签
+    axs0_title_text=axs[0][0].set_title(u'每年获得的飞行常客里程数与玩视频游戏所消耗时间占比',FontProperties=font)
+    axs0_xlabel_text=axs[0][0].set_xlabel(u'每年获得的飞行常客里程数',FontProperties=font)
+    axs0_ylabel_text=axs[0][0].set_ylabel(u'玩视频游戏所消耗时间占比',FontProperties=font)
+    #分别设置标题，x轴和y轴的属性，如字体大小，颜色
+    plt.setp(axs0_title_text,size=9,weight='bold',color='red')
+    plt.setp(axs0_xlabel_text,size=7,weight='bold',color='black')
+    plt.setp(axs0_ylabel_text,size=7,weight='bold',color='black')
+    
+    #再以datingDataMat的第一列为横坐标，第三列为纵坐标画出第一幅图，三点大小为15，透明度为0.5
+    axs[0][1].scatter (x=datingDataMat[:,0],y=datingDataMat[:,2],color=labelsColors,s=15,alpha=.5) 
+    #设置标题，x和y轴标签
+    axs1_title_text=axs[0][1].set_title(u'每年获得的飞行常客里程数与每周消耗的冰淇淋公升数',FontProperties=font)
+    axs1_xlabel_text=axs[0][1].set_xlabel(u'每年获得的飞行常客里程数',FontProperties=font)
+    axs1_ylabel_text=axs[0][1].set_ylabel(u'每周消耗的冰淇淋公升数',FontProperties=font)
+    #分别设置标题，x轴和y轴的属性，如字体大小，颜色
+    plt.setp(axs1_title_text,size=9,weight='bold',color='red')
+    plt.setp(axs1_xlabel_text,size=7,weight='bold',color='black')
+    plt.setp(axs1_ylabel_text,size=7,weight='bold',color='black')
+
+    #再以datingDataMat的第二列为横坐标，第三列为纵坐标画出第一幅图，三点大小为15，透明度为0.5
+    axs[1][0].scatter (x=datingDataMat[:,1],y=datingDataMat[:,2],color=labelsColors,s=15,alpha=.5) 
+    #设置标题，x和y轴标签
+    axs2_title_text=axs[1][0].set_title(u'玩视频游戏所消耗时间占比与每周消耗的冰淇淋公升数',FontProperties=font)
+    axs2_xlabel_text=axs[1][0].set_xlabel(u'玩视频游戏所消耗时间占比',FontProperties=font)
+    axs2_ylabel_text=axs[1][0].set_ylabel(u'每周消耗的冰淇淋公升数',FontProperties=font)
+    #分别设置标题，x轴和y轴的属性，如字体大小，颜色
+    plt.setp(axs2_title_text,size=9,weight='bold',color='red')
+    plt.setp(axs2_xlabel_text,size=7,weight='bold',color='black')
+    plt.setp(axs2_ylabel_text,size=7,weight='bold',color='black')
+
+    #设置图例
+    didntLike = mlines.Line2D([], [], color='black', marker='.',
+                      markersize=6, label='didntLike')
+    smallDoses = mlines.Line2D([], [], color='orange', marker='.',
+	                  markersize=6, label='smallDoses')
+    largeDoses = mlines.Line2D([], [], color='red', marker='.',
+	                  markersize=6, label='largeDoses')
+	#添加图例
+    axs[0][0].legend(handles=[didntLike,smallDoses,largeDoses])
+    axs[0][1].legend(handles=[didntLike,smallDoses,largeDoses])
+    axs[1][0].legend(handles=[didntLike,smallDoses,largeDoses])
+	#显示图片
+    plt.show()
+
+"""
+函数说明：将数据归一化处理
+
+参数：
+    原数据集（矩阵）
+    利用归一化方法： nuwValue=(oldValue-min)/(max-min)对原矩阵数据进行处理
+Return:
+    一个新的数据集且数据范围在0到1之间(normDataSet)
+    原数据集的差值向量(ranges)
+    原数据集的最小值向量(minVals)
+
+Modify:
+    2017-09-02
+"""
+def autoNorm(dataSet):
+    #首先获取原矩阵每一列的最大值及最小值，并保存至两个向量中
+    minVals=dataSet.min(0)
+    maxVals=dataSet.max(0)
+    #计算这两者向量各列大最大值与最小值之差，得到一个新的向量
+    ranges=maxVals-minVals
+    #利用zeros()函数创建一个新矩阵，大小与原矩阵大小相同
+    normDataSet=zeros(shape(dataSet))
+    #将最小值及差值利用tile()函数进行拓展，拓展至与dataSet大小相同的矩阵
+    #首先获取dataSet的行数
+    m=dataSet.shape[0]
+    #将最小值进行行拓展，得到新的最小值矩阵
+    newMinVals=tile(minVals,(m,1))
+    #将差值进行行拓展，得到新的差值矩阵
+    newRanges=tile(ranges,(m,1))
+    #再将原数据依次对最小值作差，得到原数据与最小值的差矩阵
+    normDataSet=dataSet-newMinVals
+    #最后再将原数据与最小值的差矩阵除以差值矩阵，得到归一化之后的新矩阵
+    normDataSet=normDataSet/newRanges
+    return normDataSet,ranges,minVals
+
+"""
+函数说明：测试验证分类器
+
+参数：
+    函数本身
+    利用原数据集的90%作为训练数集，用剩余的10%作为输入值，计算误差率（其中90%及10%的数据均随机分配）
+Return:
+    分类器的误差率
+
+Modify:
+    2017-09-02
+"""
+def datingClassTest():
+    #首先利用文本转数据函数，将文本文件转换为数据file2matrix()函数
+    datingDataMat,datingLabels=file2matrix('datingTestSet.txt')
+    #再利用归一化将原数据集进行处理
+    normDataSet,ranges,minVals=autoNorm(datingDataMat)
+    #将10%赋值给比例值
+    hoRito=0.10
+    #首先获取归一化处理后的数据集的行数
+    m=normDataSet.shape[0]
+    #计算需要作为输入值10%的行数
+    numTestVecs=int(m*hoRito)
+    #然后利用classify0()函数对输入值进行预测，得到预测值
+    #首先定义一个errorCount用于计算错误的次数
+    errorCount=0.0
+    #再建立一个循环，分别预测输入值的类别
+    for i in range(numTestVecs):
+        #利用classify0()函数预测输入值的类别(前numTestVecs数据作为输入值，从numTestVecs至m数据作为原数据)
+        classifierResult=classify0(normDataSet[i,:],normDataSet[numTestVecs:m,:],datingLabels[numTestVecs:m],3)
+        print('分类结果为：%d,真实结果为：%d'%(classifierResult,datingLabels[i]))
+        if classifierResult != datingLabels[i]:
+            errorCount +=1
+    print('分类器错误率为:%f' %(errorCount/float(numTestVecs)))
+
+"""
+函数说明：约会预测函数
+
+参数：
+    输入每年获得的飞行常客里程数，玩视频游戏所消耗时间占比及每周消耗的冰淇淋公升数
+    利用classify0()函数对输入值进行类别预测
+Return:
+    喜欢的程度
+
+Modify:
+    2017-09-02
+"""
+def classifyPerson():
+    #首先创建一个列表，将三种结果作为列表元素保存
+    resultList=['完全不喜欢','还可以','命中情人']
+    #输入用户的每年获得的飞行里程数
+    ffMile=float(input('每年获得的飞行里程数是：'))
+    #输入用户的玩视频游戏所消耗时间占比
+    percentTats=float(input('玩视频游戏所消耗时间占比：'))
+    #输入用户的每周消耗的冰淇淋公升数
+    iceCream=float(input('每周消耗的冰淇淋公升数:'))
+    #利用file2matrix()将原文本转为数据并保存至矩阵datingDataMat和类别标签列表datingLabels
+    datingDataMat,datingLabels=file2matrix('datingTestSet.txt')
+    #利用autoNorm()函数对原数据进行归一化处理
+    normMat,ranges,minVals=autoNorm(datingDataMat)
+    #将用户输入的信息作为一个新的矩阵输入
+    inArr=array([ffMile,percentTats,iceCream])
+    #将用户输入的矩阵先进行归一化处理，再利用classify0()函数进行预测
+    classifierResult=classify0((inArr-minVals)/ranges,datingDataMat,datingLabels,3)
+    #最后将预测结果与最初创建的结果列表进行对照，输出感觉
+    print('你对这个人的感觉是：',resultList[classifierResult-1])
+
+if __name__ == '__main__':
+	classifyPerson()
