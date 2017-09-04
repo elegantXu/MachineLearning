@@ -1,0 +1,138 @@
+#编写基本函数，第一个位NumPy科学计算包，第二个是运算符模块,第三个以后均为可视化数据所需的matplotlib
+from numpy import *
+import operator
+from os import listdir
+#k-近邻算法：
+"""
+    函数说明:kNN算法,分类器
+
+    Parameters:
+	inX - 用于分类的数据(测试集)
+	dataSet - 用于训练的数据(训练集)
+	labes - 分类标签
+	k - kNN算法参数,选择距离最小的k个点
+    Returns:
+	sortedClassCount[0][0] - 分类结果
+
+    Modify:
+	2017-09-01
+"""
+#（1）计算已知类别数据集中的点与当前点之间的距离，并按照递增次序排序；
+def classify0(inX,dataSet,labels,k):
+    #首先获取已知类别数据集的矩阵行数
+    dataSetSize = dataSet.shape[0]
+    #然后利用tile()函数对当前点进行已知类别数据集的行扩充，并计算与各个已知类别的点之差
+    diffMat=tile(inX,(dataSetSize,1))-dataSet
+    #再将两者之差进行平方
+    sqDiffMat=diffMat**2
+    #将平方后所得的矩阵进行每一行向量相加
+    sqDistance=sqDiffMat.sum(axis=1)
+    #最后将所得的平方和进行开平方即可得当前点与各个已知类别数据集中点之间的距离
+    distance=sqDistance**0.5
+    #最后将得到得到距离进行按递增排序
+    sortedDistIndicies=distance.argsort()
+#(2)选取与当前点距离最小的k个点，并确定前k个点所在类别的出现频率
+    #首先创建一个新的空dict,用于存放k个点所在类别及其出现的频数
+    classCount={}
+    #选取k个点
+    for i in range(k):
+    #首先获取距离从小到大的数据点的类别，利用distance.argsort()[]获取
+        voteIlabels=labels[sortedDistIndicies[i]]
+    #将获取的距离最小的k个点的类别进行统计，并存放于classCount{}
+    #classCount.get(A,0)+1表示对classCount中的A出现的频数进行统计，若不存在，返回0，若存在，则+1
+        classCount [voteIlabels] = classCount.get(voteIlabels,0)+1
+#（3）对k个点所在类别出现的频率进行由大至小排序，最后输出k个点出现频率最高的类别作为当前点的预测分类
+    sortedClassCount=sorted(classCount.items(),key=operator.itemgetter(1),reverse=True)
+    #在python2.版本中的itertems()的用法在python3.0中被废除，以items()代替
+    return sortedClassCount[0][0]
+#将文本数据转换至maxtrix
+"""
+函数说明:打开并解析文件，将图像文件存入至数据库中
+
+Parameters:
+	filename - 文件名
+Returns:
+	returnMat - 特征矩阵
+	classLabelVector - 分类Label向量
+
+Modify:
+	2017-09-01
+"""
+#首先定义一个转换函数
+def img2vector(filename):
+    #打开文件
+    fr=open(filename)
+     #定义一个空矩阵，用于返回向量
+    returnVec=zeros((1,1024))
+        #开始一个循环，用于读取每一行的数据，并返回一个列表
+    for i in range(32):
+            #读取每一行数据，并返回一个列表
+        lineStr=fr.readline()
+            #重新开始一个循环，用于将每一行的数据列表的每一个元素，返回至returnVec
+        for j in range(32):
+                #将每一行的每个元素进去读取并存入至returnVec
+            returnVec[0,32*i+j]=int(lineStr[j])
+    return returnVec
+
+"""
+函数说明：测试验证分类器
+
+参数：
+    函数本身
+    利用原training文件夹数据集作为训练数集，用test文件夹数据集作为测试数据集，计算误差率
+Return:
+    分类器的误差率
+
+Modify:
+    2017-09-02
+"""
+def handwritingClassTest():
+    #首先定义一个空列表用于存储每一个数据对应的标签值
+    hwLabels=[]
+    #利用listdir读取training文件夹中的文件名
+    trainingFileList=listdir('trainingDigits')
+    #计算training文件夹中的文件个数
+    m=len(trainingFileList)
+    #再定义一个空矩阵，用于存放training文件夹中的每一个文件的数据集
+    trainingMat=zeros((m,1024))
+    #开始一个循环用于提取training文件夹中的每一个文件的数据集及其对应的label值
+    for i in range(m):
+        #首先读取每一个文件的文件名
+        trainingFlieName=trainingFileList[i]
+        #然后将该文件名以'.'分隔，并去除文件名后缀
+        fileStr=trainingFlieName.split('.')[0]
+        #再将该文件名以'_'分隔，提取其label值
+        classNumStr=int(fileStr.split('_')[0])
+        #将其label值存储至hwLabels列表
+        hwLabels.append(classNumStr)
+        #再将该文件内容转换为向量，并存储至trainingMat矩阵
+        trainingMat[i,:]=img2vector('trainingDigits/%s'%trainingFlieName)
+    #先定义误差为0.0
+    errorCount=0.0
+    #再开始提取test文件夹中的内容
+    #首先提取test文件夹中的文件名
+    testFileList=listdir('testDigits')
+    #计算test文件夹中文件个数
+    mTest=len(testFileList)
+    #同上开始循环，提取test文件夹中每一个文件对用的label值
+    for i in range(mTest):
+        #首先读取test文件夹中的第i个文件的文件名
+        testFileName=testFileList[i]
+        #然后将该文件名以'.'分隔，去除文件名后缀
+        testFileStr=testFileName.split('.')[0]
+        #然后再将该文件名以'_'分隔，提取其label值
+        testLabel=int(testFileStr.split('_')[0])
+        #最后将问文件的数据提取为输入数据集
+        testVector=img2vector('testDigits/%s'%testFileName)
+        #利用分类器classify0函数对输入数据进行分类，预测类别
+        classifierResult=classify0(testVector,trainingMat,hwLabels,3)
+        #输出预测结果及真实结果
+        print('分类结果为：%d,真实结果为：%d'%(classifierResult,testLabel))
+        #如果分类结果与真实结果不同，则错误数+1
+        if classifierResult != testLabel:
+            errorCount +=1
+    #输出总错误数
+    print('计算总错误数为：%d'%errorCount)
+    #输出错误率
+    print('分类器错误率为:%f' %(errorCount/float(mTest)))
+
